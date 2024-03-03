@@ -1,0 +1,22 @@
+parameters:
+  agent_name: er    # [er, icarl, tiny, bic, gdumb, derpp, rm]
+  batch_size: 128
+  data_order: fixed
+  epochs: 1
+  mode: disjoint
+  model: resnet32
+  num_task_cls_per_task:
+  - 5
+  - 2
+  num_workers: 1
+  rb_path: ./rb_data/er/cifar10/CarM-50
+  rb_size: 2000
+  result_save_path: results/er/cifar10/CarM-50
+  run: 1
+  sampling: ringbuffer
+  swap: true
+  swap_base: hybrid_ratio
+  test_set: cifar10
+  threshold: 0.5
+  seed_start: 2023
+  seed: 2023
