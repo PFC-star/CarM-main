@@ -128,8 +128,8 @@ def experiment(final_params):
 
         dataset = iCIFAR10('../datasets')
         for task_id in range(num_task):
-            label_st = task_id * num_classes_per_task
-            for x in range(label_st, label_st + num_classes_per_task):
+            label_st = task_id
+            for x in range(label_st, label_st + 6 ):
                 print(class_order[x])
                 dataset.getTrainData(class_order[x])
 
@@ -139,5 +139,5 @@ def experiment(final_params):
                     img, label = dataset[i]
                     continual.send_stream_data(img, label, task_id)
             continual.train_disjoint(task_id,task_id)
-        
+
         del continual

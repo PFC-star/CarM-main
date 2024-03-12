@@ -8,7 +8,7 @@ from collections import deque
 import time
 from queue import Queue
 import math
-
+import random
 TIMEOUT = 1
 SLEEP = 0.001
 
@@ -111,6 +111,11 @@ class MultiTaskStreamDataset(Dataset):
             'RandomRotation',
             'RandomAffine',
         ]
+        random_seed = 2023
+        torch.manual_seed(random_seed)
+        torch.cuda.manual_seed(random_seed)
+        np.random.seed(random_seed)
+        random.seed(random_seed)
         domain_type =  self.domainList[domain]
         if domain_type == "RandomHorizontalFlip":
             domain_trsf  = transforms.RandomHorizontalFlip(p=1)
@@ -141,8 +146,14 @@ class MultiTaskStreamDataset(Dataset):
 
 
             if domain_trsf:
+                random_seed = 2023
+                torch.manual_seed(random_seed)
+                torch.cuda.manual_seed(random_seed)
+                np.random.seed(random_seed)
+                random.seed(random_seed)
 
                 img = domain_trsf(img)
+                self.domain_change = True
 
             self.data.append(img)
             self.targets.append(label)

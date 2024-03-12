@@ -24,7 +24,7 @@ class Continual(object):
     def __init__(self, gpu_num=0, batch_size=10, epochs=1, rb_size=100, num_workers=0, swap=False,
                 opt_name="SGD", lr=0.1, lr_schedule=None, lr_decay=None,
                 sampling="reservoir", train_transform=transforms.Compose([transforms.RandomCrop(32, padding=4),  transforms.ToTensor(), transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)),]),
-                 test_transform=transforms.Compose([transforms.RandomCrop(32, padding=4),  transforms.ToTensor(), transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)),]), test_set="cifar100", rb_path=None,
+                 test_transform=transforms.Compose([transforms.RandomCrop(32, padding=4),  transforms.ToTensor(), transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)),]), test_set="cifar10", rb_path=None,
                 model="resnet18", agent_name="icarl", mode="disjoint", filename=None, samples_per_task = 5000, **kwargs):
         self.data_manager = DataManager()
         self.batch_size = batch_size
@@ -108,7 +108,7 @@ class Continual(object):
 
         elif self.test_set == "cifar10":
             self.train_transform = transforms.Compose([transforms.RandomCrop(32, padding=4),
-                                                      transforms.RandomHorizontalFlip(),
+
                                                       transforms.ToTensor(),
                                                       transforms.Normalize((0.4914, 0.4822, 0.4465),
                                                                             (0.2470, 0.2435, 0.2615))])

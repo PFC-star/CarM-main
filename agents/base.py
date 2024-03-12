@@ -26,12 +26,12 @@ class Base(object):
                 test_dataset, filename, **kwargs):
         #self.model = model
 
-        #set seed
-        #random_seed = 0
-        #torch.manual_seed(random_seed)
-        #torch.cuda.manual_seed(random_seed)
-        #np.random.seed(random_seed)
-        #random.seed(random_seed)
+        # set seed
+        random_seed = kwargs['seed']
+        torch.manual_seed(random_seed)
+        torch.cuda.manual_seed(random_seed)
+        np.random.seed(random_seed)
+        random.seed(random_seed)
         
         self.opt_name = opt_name
         self.lr = lr

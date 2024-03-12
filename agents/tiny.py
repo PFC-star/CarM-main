@@ -28,7 +28,7 @@ class Tiny(Base):
         super().__init__(model, opt_name, lr, lr_schedule, lr_decay, device, num_epochs, swap,
                         transform, data_manager, stream_dataset, replay_dataset, cl_dataloader, test_set,
                         test_dataset, filename, **kwargs)
-        self.cl_dataloader = AserDataLoader(stream_dataset, replay_dataset, data_manager, 0, 10, swap)
+        self.cl_dataloader = AserDataLoader(stream_dataset, replay_dataset, data_manager, 0, 128, swap)
 
         # variables 
         self.num_swap = list()
@@ -36,7 +36,7 @@ class Tiny(Base):
         self.samples_so_far = 0
 
         # variables for evaluation
-        self.classes_so_far = 0
+        self.classes_so_far = 6
         self.tasks_so_far = 0
         self.incremental_acc = list()
         self.epoch_acc = list()
@@ -51,20 +51,22 @@ class Tiny(Base):
 
         # optimizer, scheduler, and criterion initialization
         self.criterion = torch.nn.CrossEntropyLoss(reduce = False)
-        self.optimizer = optim.SGD(self.model.parameters(), lr=self.maxlr, weight_decay=self.weight_decay)
+        self.optimizer = optim.SGD(self.model.parameters(), momentum=0.9,lr=0.1, weight_decay=0.0005)
 
-    def before_train(self, task_id):
+    def before_train(self, task_id,domain):
         self.curr_task_iter_time = []
 
-        self.stream_dataset.create_task_dataset(task_id)
-        self.test_dataset.append_task_dataset(task_id)
+        self.stream_dataset.create_task_dataset(task_id,domain)
+        self.test_dataset.append_task_dataset(task_id,domain)
 
 
         self.replay_dataloader = TinyReplayDataLoader(self.replay_dataset, self.data_manager, self.cl_dataloader.num_workers, self.cl_dataloader.batch_size)
         self.iter_r = iter(self.replay_dataloader)
 
+        if self.tasks_so_far !=0:
+            self.classes_so_far+=1
 
-        self.classes_so_far += len(self.stream_dataset.classes_in_dataset)
+        # self.classes_so_far += len(self.stream_dataset.classes_in_dataset)
         self.tasks_so_far += 1
         print("classes_so_far : ", self.classes_so_far)
         self.model.Incremental_learning(self.classes_so_far)
@@ -82,7 +84,12 @@ class Tiny(Base):
         
     def train(self):
         # number of iterations through the data
+        if  self.task_number==0:
+            self.num_epochs=66
+        else:
+            self.num_epochs=50
         for epoch in range(self.num_epochs):
+
             # iterate batch wise through the stream data using the data loader
             
             # time measure
@@ -97,7 +104,8 @@ class Tiny(Base):
                     
                     iter_times.append(iter_time)
                     if data_stream_count % 20 == 0:
-                        print(f"EPOCH {epoch}, ITER {data_stream_count}, TIME {iter_en-iter_st}...")
+                        pass
+                        # print(f"EPOCH {epoch}, ITER {data_stream_count}, TIME {iter_en-iter_st}...")
                 iter_st = time.perf_counter()
 
 
@@ -160,13 +168,30 @@ class Tiny(Base):
                 self.optimizer.step()
                 # update the memory
                 self.reservoir_update(data_stream_count, stream_idxs, inputs, targets)
-                self.samples_so_far += 10
+                self.samples_so_far += 128
                 # swap is done here, swap only if memory is full
                 if self.swap == True:
                     stream_data_batch = [self.stream_dataset.data[idx] for idx in stream_idxs]
                     self.swap_manager.saver.save(stream_data_batch, targets.tolist())
-            
-            print(iter_times)
+
+            # curr_accuracy, task_accuracy, class_accuracy = self.class_eval(0)
+
+            # print("c_class_accuracy : ", class_accuracy)
+            #
+            # print("c_current_accuracy : ", curr_accuracy.item())
+
+            # print("c_task_accuracy domain :{} ".format(0), task_accuracy)
+            #
+            #
+            #
+            # # print("t_class_accuracy : ", class_accuracy)
+            # # print("t_task_accuracy : ", task_accuracy)
+            # # print("t_current_accuracy : ", curr_accuracy.item())
+            # print("--------------------------------look-------------------")
+            #
+            # print("task  {}_acc : ".format(self.task_number - 1),  task_accuracy )
+
+            # print(iter_times)
             self.curr_task_iter_time.append(np.mean(np.array(iter_times)))
 
             self.stream_losses.append(np.mean(np.array(stream_loss)))
@@ -194,22 +219,29 @@ class Tiny(Base):
         self.stream_dataset.clean_stream_dataset()
         self.task_number += 1
         # write stuff
-        
-        curr_accuracy, task_accuracy, class_accuracy = self.class_eval()    
-        print("c_class_accuracy : ", class_accuracy)
-        print("c_task_accuracy : ", task_accuracy)
-        print("c_current_accuracy : ", curr_accuracy.item())
-        
-        self.soft_class_incremental_acc.append(curr_accuracy.item())
-        print("c_incremental_accuracy : ", self.soft_class_incremental_acc)
+        task_accuracy_lst = []
+        for i in range(self.task_number):
+            curr_accuracy, task_accuracy, class_accuracy = self.class_eval(i)
+            task_accuracy_lst.append(task_accuracy)
+            # print("c_class_accuracy : ", class_accuracy)
+            #
+            # print("c_current_accuracy : ", curr_accuracy.item())
 
-        curr_accuracy, task_accuracy, class_accuracy = self.task_eval(get_entropy=self.get_test_entropy)    
-        print("t_class_accuracy : ", class_accuracy)
-        print("t_task_accuracy : ", task_accuracy)
-        print("t_current_accuracy : ", curr_accuracy.item())
-        
+            print("c_task_accuracy domain :{} ".format(i), task_accuracy)
+
+
+            curr_accuracy, task_accuracy, class_accuracy = self.task_eval(i,get_entropy=self.get_test_entropy)
+
+            # print("t_class_accuracy : ", class_accuracy)
+            # print("t_task_accuracy : ", task_accuracy)
+            # print("t_current_accuracy : ", curr_accuracy.item())
+        print("--------------------------------look-------------------")
+        print("c_class_accuracy_lst : ", task_accuracy_lst)
+        print("task  {}_acc : ".format(self.task_number-1), np.average(task_accuracy_lst))
+        self.soft_class_incremental_acc.append(curr_accuracy.item())
+        # print("c_incremental_accuracy : ", self.soft_class_incremental_acc)
         self.soft_task_incremental_acc.append(curr_accuracy.item())
-        print("t_incremental_accuracy : ", self.soft_task_incremental_acc)
+        # print("t_incremental_accuracy : ", self.soft_task_incremental_acc)
 
         f = open(self.result_save_path + self.filename + '_accuracy.txt', 'a')
         f.write("class_accuracy : "+str(class_accuracy)+"\n")
@@ -236,7 +268,8 @@ class Tiny(Base):
 
         print('======================================================================')
 
-    def task_eval(self, get_entropy=False):
+    def task_eval(self,domain, get_entropy=False):
+        domainID=domain
         test_dataloader = DataLoader(self.test_dataset, batch_size = 128, shuffle=False)
         self.model.eval()
         correct, total = 0, 0
@@ -313,18 +346,20 @@ class Tiny(Base):
             if class_correct[i]==0 and class_total[i] == 0:
                 continue
             class_acc = 100 * class_correct[i] / class_total[i]
-            print('[%2d] Accuracy of %2d : %2d %%' % (
-            i, i, class_acc))
+            # print('[%2d] Accuracy of %2d : %2d %%' % (
+            # i, i, class_acc))
             class_accuracy.append(class_acc)
         for task_id, task_classes in self.data_manager.classes_per_task.items():
-            task_acc = np.mean(np.array(list(map(lambda x : class_accuracy[x] ,task_classes))))
-            task_accuracy[task_id] = task_acc
+
+            if task_id == domainID:
+                task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x - domainID], task_classes))))
         total_accuracy = 100 * correct / total
         self.model.train()
         return total_accuracy, task_accuracy, class_accuracy
 
-    def class_eval(self):
+    def class_eval_init(self):
         self.model.eval()
+
         test_dataloader = DataLoader(self.test_dataset, batch_size = 128, shuffle=False)
         
         correct, total = 0, 0
@@ -352,18 +387,115 @@ class Tiny(Base):
             if class_correct[i]==0 and class_total[i] == 0:
                 continue
             class_acc = 100 * class_correct[i] / class_total[i]
-            print('[%2d] Accuracy of %2d : %2d %%' % (
-            i, i, class_acc))
+            # print('[%2d] Accuracy of %2d : %2d %%' % (
+            # i, i, class_acc))
             class_accuracy.append(class_acc)
         
         for task_id, task_classes in self.data_manager.classes_per_task.items():
-            task_acc = np.mean(np.array(list(map(lambda x : class_accuracy[x] ,task_classes))))
-            task_accuracy[task_id] = task_acc
+
+            task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x], task_classes))))
+
 
         total_accuracy = 100 * correct / total
         self.model.train()
         return total_accuracy, task_accuracy, class_accuracy
 
+    def class_eval(self,task):
+        self.model.eval()
+
+        # taskID = self.classes_so_far -6
+        domainID = task
+
+        common_trsf = [
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)
+            ),]
+
+        self.domainLst = [
+            'None',
+            'RandomHorizontalFlip',
+            'ColorJitter',
+            'RandomRotation',
+            'RandomAffine',
+        ]
+        domain_type = self.domainLst[domainID]
+        if domain_type == "RandomHorizontalFlip":
+            domain_trsf = [
+                transforms.RandomHorizontalFlip(p=1),#水平翻转
+            ]
+        elif domain_type == "ColorJitter":
+            domain_trsf = [
+               transforms.ColorJitter(brightness=63 / 255),
+            ]
+        elif domain_type == "RandomRotation":
+            domain_trsf = [
+                transforms.RandomRotation(5)
+            ]
+        elif domain_type == "RandomGrayscale":
+            domain_trsf = [
+                transforms.RandomGrayscale(p=1.0)
+            ]
+        elif domain_type == "RandomVerticalFlip":
+            domain_trsf = [
+                transforms.RandomVerticalFlip(p=1.0)
+            ]
+        elif domain_type == "RandomAffine":
+            domain_trsf = [
+                transforms.RandomAffine(degrees=0, translate=(0.05, 0.05))
+            ]
+        elif domain_type=='None':
+            domain_trsf = [
+                 # 为空，不作修改
+            ]
+
+        self.test_transform = transforms.Compose([ *common_trsf, *domain_trsf])
+        self.test_dataset = get_test_set(test_set_name='cifar10', data_manager=self.data_manager, test_transform=self.test_transform)
+        # self.test_dataset.clean_dataset()
+        self.test_dataset.append_task_dataset(task,task)
+
+        test_dataloader = DataLoader(self.test_dataset, batch_size=128, shuffle=False)
+
+        correct, total = 0, 0
+        class_correct = list(0. for i in range(self.classes_so_far))
+        class_total = list(0. for i in range(self.classes_so_far))
+        class_accuracy = list()
+        task_accuracy = dict()
+
+        for setp, (imgs, labels) in enumerate(test_dataloader):
+            imgs, labels = imgs.to(self.device), labels.to(self.device)
+            with torch.no_grad():
+                outputs = self.model(imgs)
+            predicts = torch.max(outputs, dim=1)[1]
+            c = (predicts.cpu() == labels.cpu()).squeeze()
+
+            correct += (predicts.cpu() == labels.cpu()).sum()
+            total += len(labels)
+
+            for i in range(labels.size(0)):
+                label = labels[i]
+                class_correct[label] += c[i].item()
+                class_total[label] += 1
+
+        for i in range(len(class_correct)):
+            if class_correct[i] == 0 and class_total[i] == 0:
+                continue
+            class_acc = 100 * class_correct[i] / class_total[i]
+            print('[%2d] Accuracy of %2d : %2d %%' % (
+                i, i, class_acc))
+            class_accuracy.append(class_acc)
+
+        for task_id, task_classes in self.data_manager.classes_per_task.items():
+            if task_id==domainID:
+                print("task_classes",task_classes)
+                task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x-domainID], task_classes))))
+            # elif task_id == domainID:
+            #     task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x-1], task_classes))))
+
+
+        total_accuracy = 100 * correct / total
+        self.model.train()
+        return total_accuracy, task_acc, class_accuracy
     def reservoir_update(self, data_stream_count, stream_idx, inputs, targets):
         batch_count = 0
         for index, new_data, new_label in zip(stream_idx, inputs, targets):

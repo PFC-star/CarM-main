@@ -7,7 +7,7 @@ import numpy as np
 import os
 import pickle
 import torch
-
+import random
 def get_test_set(test_set_name, data_manager, test_transform):
     print(test_set_name)
     test_set = {
@@ -355,26 +355,29 @@ class Cifar10TestDataset(CIFAR10):
             con_data=np.concatenate((con_data,datas[i]),axis=0)
             con_label=np.concatenate((con_label,labels[i]),axis=0)
         return con_data,con_label
-
+    def clean_dataset(self):
+        self.TestData = []
+        self.TestLabels = []
     def append_task_dataset(self, task_id,domain):
         print("data_manager.classes_per_task[task_id] : ", self.data_manager.classes_per_task[task_id])
         datas,labels=[],[]
 
+        # for label in self.data_manager.classes_per_task[task_id]:
         for label in self.data_manager.classes_per_task[task_id]:
-            
             if label in self.TestLabels:
                 continue
 
             actual_label = self.data_manager.map_int_label_to_str_label[label]
 
             data = self.data[np.array(self.targets) == actual_label]
-            a = transforms.RandomAffine(degrees=0, translate=(0.05, 0.05))
+
+
+
             tempData=[]
             for i in range(len(data)):
                 t_out = transforms.ToTensor()(data[i])
-                img2 = transforms.ToPILImage()(t_out.float())
+                data_ = transforms.ToPILImage()(t_out.float())
 
-                data_  = a(img2)
                 # data_tensor = transforms.ToTensor()(data)
                 data_numpy = np.array(data_)
                 tempData.append(data_numpy)
@@ -391,6 +394,11 @@ class Cifar10TestDataset(CIFAR10):
         print("test unique : ", np.unique(self.TestLabels))
 
     def __getitem__(self, index):
+        random_seed = 2023
+        torch.manual_seed(random_seed)
+        torch.cuda.manual_seed(random_seed)
+        np.random.seed(random_seed)
+        random.seed(random_seed)
         img, target = Image.fromarray(self.TestData[index]), self.TestLabels[index]
         img = self.test_transform(img)
         return img, target

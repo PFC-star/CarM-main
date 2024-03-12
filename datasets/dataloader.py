@@ -126,7 +126,7 @@ class TinyContinualDataLoader(object):
         self.stream_dataloader = DataLoader(self.stream_dataset,
                                         batch_size = self.batch_size,
                                         num_workers = self.num_workers,
-                                        shuffle=True,
+                                        shuffle=False,
                                         drop_last=True)
     def __iter__(self):
         print("iteration starts!")
@@ -198,6 +198,7 @@ class ConcatContinualDataLoader(object):
     
     def update_loader(self):
         self.concat_dataset.update_memory_flag()
+        self.concat_dataset = ConcatDataset(self.stream_dataset, self.replay_dataset)
         print("the size of train set is %s"%(str(len(self.concat_dataset))))
 
 

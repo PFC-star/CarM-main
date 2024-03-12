@@ -432,7 +432,7 @@ class SwapManager(object):
                 else:
                     self.swap_class_dist[swap_label] += 1
 
-        #print(what_to_swap)
+        # print(what_to_swap)
         if len(what_to_swap) > 0:
             if hasattr(self, "_swapper"):
                 asyncio.run(self._swapper._swap(what_to_swap, labels, data_ids))

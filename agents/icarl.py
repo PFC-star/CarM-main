@@ -29,6 +29,7 @@ class make_dataset(Dataset):
         self.actual_idx = ac_idx
         self.classes_in_dataset = set(targets)
 
+
     def __len__(self):
         assert len(self.data) == len(self.targets)
         return len(self.data)
@@ -46,6 +47,7 @@ class ICarl(Base):
         super().__init__(model, opt_name, lr, lr_schedule, lr_decay, device, num_epochs, swap,
                         transform, data_manager, stream_dataset, replay_dataset, cl_dataloader, test_set,
                         test_dataset, filename, **kwargs)
+        self.class_means = np.zeros((self.classes_so_far, self.model.features_dim))
 
         if self.test_set == "cifar100":        
             self.base_transform = transforms.Compose([transforms.ToTensor(),
@@ -94,11 +96,11 @@ class ICarl(Base):
 
 
         
-    def before_train(self, task_id):
+    def before_train(self, task_id,domain):
         self.curr_task_iter_time = []
         self.model.eval()        
         self.stream_dataset.create_task_dataset(task_id,domain=1)
-        self.test_dataset.append_task_dataset(task_id)
+        self.test_dataset.append_task_dataset(task_id,domain)
 
         self.cl_dataloader.update_loader()
 
@@ -260,7 +262,7 @@ class ICarl(Base):
         herding_indexes = copy.deepcopy(herding_indexes)
 
         data_memory, targets_memory = [], []
-        class_means = np.zeros((self.classes_so_far, self.model.features_dim))
+        self.class_means = np.zeros((self.classes_so_far, self.model.features_dim))
 
         for class_idx in range(self.classes_so_far):
             
@@ -315,7 +317,7 @@ class ICarl(Base):
                 data_memory.append(inputs[idx])
                 targets_memory.append(targets[idx])
 
-            class_means[class_idx, :] = examplar_mean
+            self.class_means[class_idx, :] = examplar_mean
 
         
         if self.swap == True:

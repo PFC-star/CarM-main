@@ -90,7 +90,7 @@ class Bottleneck(nn.Module):
 
 class PreResNet(nn.Module):
 
-    def __init__(self, depth, num_classes=100, block_name='BasicBlock'):
+    def __init__(self, depth, num_classes=100, block_name='basicblock'):
         super(PreResNet, self).__init__()
         # Model type specifies number of layers for CIFAR-10 model
         if block_name.lower() == 'basicblock':
@@ -145,8 +145,8 @@ class PreResNet(nn.Module):
         x = self.layer1(x)  # 32x32
         x = self.layer2(x)  # 16x16
         x = self.layer3(x)  # 8x8
-        x = self.bn(x)
-        x = self.relu(x)
+        # x = self.bn(x)
+        # x = self.relu(x)
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
