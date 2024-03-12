@@ -266,7 +266,7 @@ class MiniImagenetTestDataset(Dataset):
         return self.data[np.array(self.targets)==label]
 
 class Cifar100TestDataset(CIFAR100):
-    def __init__(self,root='./data',
+    def __init__(self,root='../datasets',
                  data_manager=None,
                  train=False,
                  #transform=None,
@@ -292,7 +292,7 @@ class Cifar100TestDataset(CIFAR100):
             con_label=np.concatenate((con_label,labels[i]),axis=0)
         return con_data,con_label
 
-    def append_task_dataset(self, task_id):
+    def append_task_dataset(self, task_id,domain):
         datas,labels=[],[]
 
         for label in self.data_manager.classes_per_task[task_id]:
