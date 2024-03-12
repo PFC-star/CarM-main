@@ -36,14 +36,18 @@ class Tiny(Base):
         self.samples_so_far = 0
 
         # variables for evaluation
-        self.classes_so_far = 6
+        if self.test_set == "cifar10":
+            self.classes_so_far = 6
+        if self.test_set == "cifar100":
+            self.classes_so_far = 60
+
         self.tasks_so_far = 0
         self.incremental_acc = list()
         self.epoch_acc = list()
         self.max_epoch_acc = 0
         self.soft_class_incremental_acc = list()
         self.soft_task_incremental_acc = list()
-
+        self.test_set   = test_set
         # specify the start and ending learning rates and weight decay to be used
         self.maxlr = 0.1
         self.minlr = 0.0005
@@ -52,7 +56,7 @@ class Tiny(Base):
         # optimizer, scheduler, and criterion initialization
         self.criterion = torch.nn.CrossEntropyLoss(reduce = False)
         self.optimizer = optim.SGD(self.model.parameters(), momentum=0.9,lr=0.1, weight_decay=0.0005)
-
+        self.kwargs = kwargs
     def before_train(self, task_id,domain):
         self.curr_task_iter_time = []
 
@@ -64,8 +68,10 @@ class Tiny(Base):
         self.iter_r = iter(self.replay_dataloader)
 
         if self.tasks_so_far !=0:
-            self.classes_so_far+=1
-
+            if self.test_set == "cifar10":
+                self.classes_so_far+=1
+            if self.test_set == "cifar100":
+                self.classes_so_far+=10
         # self.classes_so_far += len(self.stream_dataset.classes_in_dataset)
         self.tasks_so_far += 1
         print("classes_so_far : ", self.classes_so_far)
@@ -85,7 +91,7 @@ class Tiny(Base):
     def train(self):
         # number of iterations through the data
         if  self.task_number==0:
-            self.num_epochs=66
+            self.num_epochs=66  # cifar 76 的头为 66 取到
         else:
             self.num_epochs=50
         for epoch in range(self.num_epochs):
@@ -450,7 +456,7 @@ class Tiny(Base):
             ]
 
         self.test_transform = transforms.Compose([ *common_trsf, *domain_trsf])
-        self.test_dataset = get_test_set(test_set_name='cifar10', data_manager=self.data_manager, test_transform=self.test_transform)
+        self.test_dataset = get_test_set(test_set_name=self, data_manager=self.data_manager, test_transform=self.test_transform)
         # self.test_dataset.clean_dataset()
         self.test_dataset.append_task_dataset(task,task)
 
