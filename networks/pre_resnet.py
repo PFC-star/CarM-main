@@ -88,7 +88,6 @@ class Bottleneck(nn.Module):
         return out
 
 
-
 class PreResNet(nn.Module):
 
     def __init__(self, depth, num_classes=100, block_name='basicblock'):

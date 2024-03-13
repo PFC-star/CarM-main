@@ -47,7 +47,7 @@ class Tiny(Base):
         self.max_epoch_acc = 0
         self.soft_class_incremental_acc = list()
         self.soft_task_incremental_acc = list()
-        self.test_set   = test_set
+
         # specify the start and ending learning rates and weight decay to be used
         self.maxlr = 0.1
         self.minlr = 0.0005
@@ -56,7 +56,7 @@ class Tiny(Base):
         # optimizer, scheduler, and criterion initialization
         self.criterion = torch.nn.CrossEntropyLoss(reduce = False)
         self.optimizer = optim.SGD(self.model.parameters(), momentum=0.9,lr=0.1, weight_decay=0.0005)
-        self.kwargs = kwargs
+
     def before_train(self, task_id,domain):
         self.curr_task_iter_time = []
 
@@ -72,6 +72,8 @@ class Tiny(Base):
                 self.classes_so_far+=1
             if self.test_set == "cifar100":
                 self.classes_so_far+=10
+
+
         # self.classes_so_far += len(self.stream_dataset.classes_in_dataset)
         self.tasks_so_far += 1
         print("classes_so_far : ", self.classes_so_far)
@@ -90,10 +92,15 @@ class Tiny(Base):
         
     def train(self):
         # number of iterations through the data
-        if  self.task_number==0:
-            self.num_epochs=100  # cifar 76 的头为 66 取到
+        # if  self.task_number==0:
+        #     self.num_epochs=66
+        # else:
+        #     self.num_epochs=50
+
+        if self.task_number == 0:
+            self.num_epochs = 1
         else:
-            self.num_epochs=50
+            self.num_epochs = 1
         for epoch in range(self.num_epochs):
 
             # iterate batch wise through the stream data using the data loader
@@ -180,22 +187,22 @@ class Tiny(Base):
                     stream_data_batch = [self.stream_dataset.data[idx] for idx in stream_idxs]
                     self.swap_manager.saver.save(stream_data_batch, targets.tolist())
 
-            curr_accuracy, task_accuracy, class_accuracy = self.class_eval(0)
+            # curr_accuracy, task_accuracy, class_accuracy = self.class_eval(0)
 
-            print("c_class_accuracy : ", class_accuracy)
+            # print("c_class_accuracy : ", class_accuracy)
+            #
+            # print("c_current_accuracy : ", curr_accuracy.item())
 
-            print("c_current_accuracy : ", curr_accuracy.item())
-
-            print("c_task_accuracy domain :{} ".format(0), task_accuracy)
-
-
-
-            # print("t_class_accuracy : ", class_accuracy)
-            # print("t_task_accuracy : ", task_accuracy)
-            # print("t_current_accuracy : ", curr_accuracy.item())
-            print("--------------------------------look-------------------")
-
-            print("task  {}_acc : ".format(self.task_number - 1),  task_accuracy )
+            # print("c_task_accuracy domain :{} ".format(0), task_accuracy)
+            #
+            #
+            #
+            # # print("t_class_accuracy : ", class_accuracy)
+            # # print("t_task_accuracy : ", task_accuracy)
+            # # print("t_current_accuracy : ", curr_accuracy.item())
+            # print("--------------------------------look-------------------")
+            #
+            # print("task  {}_acc : ".format(self.task_number - 1),  task_accuracy )
 
             # print(iter_times)
             self.curr_task_iter_time.append(np.mean(np.array(iter_times)))
@@ -233,7 +240,7 @@ class Tiny(Base):
             #
             # print("c_current_accuracy : ", curr_accuracy.item())
 
-            print("c_task_accuracy domain :{} ".format(i), task_accuracy)
+            print("c_task {} _accuracy domain :{} ".format(self.task_number,i), task_accuracy)
 
 
             curr_accuracy, task_accuracy, class_accuracy = self.task_eval(i,get_entropy=self.get_test_entropy)
@@ -242,7 +249,7 @@ class Tiny(Base):
             # print("t_task_accuracy : ", task_accuracy)
             # print("t_current_accuracy : ", curr_accuracy.item())
         print("--------------------------------look-------------------")
-        print("c_class_accuracy_lst : ", task_accuracy_lst)
+        print("task_accuracy_lst : ", task_accuracy_lst)
         print("task  {}_acc : ".format(self.task_number-1), np.average(task_accuracy_lst))
         self.soft_class_incremental_acc.append(curr_accuracy.item())
         # print("c_incremental_accuracy : ", self.soft_class_incremental_acc)
@@ -254,6 +261,8 @@ class Tiny(Base):
         f.write("task_accuracy : "+str(task_accuracy)+"\n")
         f.write("class_incremental_accuracy : "+str(self.soft_class_incremental_acc)+"\n")
         f.write("task_incremental_accuracy : "+str(self.soft_task_incremental_acc)+"\n")
+        f.write("task_our_acc : " + str(np.average(task_accuracy_lst)) + "\n")
+        f.write("c_class_accuracy_lst : " + str(task_accuracy_lst) + "\n")
         f.close()
 
         
@@ -358,7 +367,12 @@ class Tiny(Base):
         for task_id, task_classes in self.data_manager.classes_per_task.items():
 
             if task_id == domainID:
-                task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x - domainID], task_classes))))
+                print("task_classes", task_classes)
+                if self.test_set == "cifar10":
+                    task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x - domainID], task_classes))))
+                if self.test_set == "cifar100":
+                    task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x - domainID * 10], task_classes))))
+
         total_accuracy = 100 * correct / total
         self.model.train()
         return total_accuracy, task_accuracy, class_accuracy
@@ -456,7 +470,8 @@ class Tiny(Base):
             ]
 
         self.test_transform = transforms.Compose([ *common_trsf, *domain_trsf])
-        self.test_dataset = get_test_set(test_set_name=self, data_manager=self.data_manager, test_transform=self.test_transform)
+
+        self.test_dataset = get_test_set(test_set_name=self.test_set, data_manager=self.data_manager, test_transform=self.test_transform)
         # self.test_dataset.clean_dataset()
         self.test_dataset.append_task_dataset(task,task)
 
@@ -467,34 +482,62 @@ class Tiny(Base):
         class_total = list(0. for i in range(self.classes_so_far))
         class_accuracy = list()
         task_accuracy = dict()
-
+        test_correct_t5 =0
+        num_classes = max(self.test_dataset.TestLabels) + 1
+        class_top5_correct = {}
+        for i in range(num_classes):
+            class_top5_correct[i] = 0
         for setp, (imgs, labels) in enumerate(test_dataloader):
             imgs, labels = imgs.to(self.device), labels.to(self.device)
             with torch.no_grad():
                 outputs = self.model(imgs)
-            predicts = torch.max(outputs, dim=1)[1]
-            c = (predicts.cpu() == labels.cpu()).squeeze()
+            # predicts = torch.max(outputs, dim=1)[1]
+            predicts = torch.topk(
+                outputs, k=5, dim=1, largest=True, sorted=True
+            )[
+                1
+            ]
+            # 计算每个类别的Top5准确率
 
-            correct += (predicts.cpu() == labels.cpu()).sum()
-            total += len(labels)
+
 
             for i in range(labels.size(0)):
-                label = labels[i]
-                class_correct[label] += c[i].item()
+                label = labels[i].item()
+                if label in predicts[i]:
+                    class_top5_correct[label] += 1
+
+            # 输出每个类别的Top5准确率
+
+            # c = (predicts.cpu() == labels.cpu()).squeeze()
+
+            # correct += (predicts.cpu() == labels.cpu()).sum()
+            total += len(labels)
+
+            # for i in range(labels.size(0)):
+            #     label = labels[i]
+            #     class_correct[label] += test_correct[i].item()
+            #     class_total[label] += 1
+
+            for i in range(labels.size(0)):
+                label = labels[i].item()
+                class_correct[label] += class_top5_correct[label]
                 class_total[label] += 1
 
-        for i in range(len(class_correct)):
-            if class_correct[i] == 0 and class_total[i] == 0:
+        for i in range(len(class_top5_correct)):
+            if class_top5_correct[i] == 0 and class_total[i] == 0:
                 continue
-            class_acc = 100 * class_correct[i] / class_total[i]
+            class_acc = 100 * class_top5_correct[i] / class_total[i]
             print('[%2d] Accuracy of %2d : %2d %%' % (
                 i, i, class_acc))
             class_accuracy.append(class_acc)
-
+        task_acc_lst = []
         for task_id, task_classes in self.data_manager.classes_per_task.items():
             if task_id==domainID:
                 print("task_classes",task_classes)
-                task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x-domainID], task_classes))))
+                if self.test_set=="cifar10":
+                    task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x-domainID], task_classes))))
+                if self.test_set=="cifar100":
+                    task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x-domainID*10], task_classes))))
             # elif task_id == domainID:
             #     task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x-1], task_classes))))
 

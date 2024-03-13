@@ -11,13 +11,13 @@ parameters:
   - 2
   num_workers: 1
   rb_path: ./rb_data/er/cifar10/CarM-50
-  rb_size: 20000
+  rb_size: 200
   result_save_path: results/er/cifar10/CarM-50
   run: 1
   sampling: ringbuffer
-  swap: true
+  swap: false
   swap_base: hybrid_ratio
-  test_set: cifar10
+  test_set: cifar100
   threshold: 0.5
   seed_start: 2023
   seed: 2023
