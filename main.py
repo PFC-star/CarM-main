@@ -20,7 +20,7 @@ def load_yaml(path, key='parameters'):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', dest='config', default='example_config.yaml')
-    parser.add_argument('--gpu_num', type=int, default=0)
+    parser.add_argument('--gpu_num', type=int, default=1)
 
     args = parser.parse_args()
 

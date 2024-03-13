@@ -17,7 +17,7 @@ parameters:
   sampling: ringbuffer
   swap: true
   swap_base: hybrid_ratio
-  test_set: cifar100
+  test_set: cifar10
   threshold: 0.5
   seed_start: 2023
   seed: 2023

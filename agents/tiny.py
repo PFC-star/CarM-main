@@ -91,7 +91,7 @@ class Tiny(Base):
     def train(self):
         # number of iterations through the data
         if  self.task_number==0:
-            self.num_epochs=66  # cifar 76 的头为 66 取到
+            self.num_epochs=100  # cifar 76 的头为 66 取到
         else:
             self.num_epochs=50
         for epoch in range(self.num_epochs):
@@ -180,22 +180,22 @@ class Tiny(Base):
                     stream_data_batch = [self.stream_dataset.data[idx] for idx in stream_idxs]
                     self.swap_manager.saver.save(stream_data_batch, targets.tolist())
 
-            # curr_accuracy, task_accuracy, class_accuracy = self.class_eval(0)
+            curr_accuracy, task_accuracy, class_accuracy = self.class_eval(0)
 
-            # print("c_class_accuracy : ", class_accuracy)
-            #
-            # print("c_current_accuracy : ", curr_accuracy.item())
+            print("c_class_accuracy : ", class_accuracy)
 
-            # print("c_task_accuracy domain :{} ".format(0), task_accuracy)
-            #
-            #
-            #
-            # # print("t_class_accuracy : ", class_accuracy)
-            # # print("t_task_accuracy : ", task_accuracy)
-            # # print("t_current_accuracy : ", curr_accuracy.item())
-            # print("--------------------------------look-------------------")
-            #
-            # print("task  {}_acc : ".format(self.task_number - 1),  task_accuracy )
+            print("c_current_accuracy : ", curr_accuracy.item())
+
+            print("c_task_accuracy domain :{} ".format(0), task_accuracy)
+
+
+
+            # print("t_class_accuracy : ", class_accuracy)
+            # print("t_task_accuracy : ", task_accuracy)
+            # print("t_current_accuracy : ", curr_accuracy.item())
+            print("--------------------------------look-------------------")
+
+            print("task  {}_acc : ".format(self.task_number - 1),  task_accuracy )
 
             # print(iter_times)
             self.curr_task_iter_time.append(np.mean(np.array(iter_times)))
