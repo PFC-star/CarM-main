@@ -33,7 +33,7 @@ class Tiny(Base):
 
         # 创建一个SubsetRandomSampler
         sampler = SubsetRandomSampler(indices)
-        self.cl_dataloader = AserDataLoader(stream_dataset, replay_dataset, data_manager, 0, 128, swap,sampler=None)
+        self.cl_dataloader = AserDataLoader(stream_dataset, replay_dataset, data_manager, 0, 128, swap )
         # variables 
         self.num_swap = list()
         self.task_number = 0
