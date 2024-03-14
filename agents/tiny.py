@@ -2,7 +2,7 @@ from random import random
 from torch.nn import functional as F
 import torch
 import torch.nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader,SubsetRandomSampler
 from torchvision import transforms
 import torch.optim as optim
 
@@ -28,8 +28,12 @@ class Tiny(Base):
         super().__init__(model, opt_name, lr, lr_schedule, lr_decay, device, num_epochs, swap,
                         transform, data_manager, stream_dataset, replay_dataset, cl_dataloader, test_set,
                         test_dataset, filename, **kwargs)
-        self.cl_dataloader = AserDataLoader(stream_dataset, replay_dataset, data_manager, 0, 128, swap)
 
+        indices = list(range(128))
+
+        # 创建一个SubsetRandomSampler
+        sampler = SubsetRandomSampler(indices)
+        self.cl_dataloader = AserDataLoader(stream_dataset, replay_dataset, data_manager, 0, 128, swap,sampler=None)
         # variables 
         self.num_swap = list()
         self.task_number = 0
@@ -39,6 +43,8 @@ class Tiny(Base):
         if self.test_set == "cifar10":
             self.classes_so_far = 6
         if self.test_set == "cifar100":
+            self.classes_so_far = 60
+        if self.test_set == "domainNet":
             self.classes_so_far = 60
 
         self.tasks_so_far = 0
@@ -59,10 +65,12 @@ class Tiny(Base):
 
     def before_train(self, task_id,domain):
         self.curr_task_iter_time = []
-
-        self.stream_dataset.create_task_dataset(task_id,domain)
-        self.test_dataset.append_task_dataset(task_id,domain)
-
+        # 不需要进行域变换 domain = 0
+        # curr_accuracy, task_accuracy, class_accuracy = self.class_eval(task_id)
+        self.stream_dataset.create_task_dataset(task_id,0)
+        self.test_dataset.download_data(task_id)
+        self.test_dataset.append_task_dataset(task_id,0)
+        # test_set 在保存的testLables中
 
         self.replay_dataloader = TinyReplayDataLoader(self.replay_dataset, self.data_manager, self.cl_dataloader.num_workers, self.cl_dataloader.batch_size)
         self.iter_r = iter(self.replay_dataloader)
@@ -71,6 +79,8 @@ class Tiny(Base):
             if self.test_set == "cifar10":
                 self.classes_so_far+=1
             if self.test_set == "cifar100":
+                self.classes_so_far+=10
+            if self.test_set == "domainNet":
                 self.classes_so_far+=10
 
 
@@ -98,9 +108,9 @@ class Tiny(Base):
         #     self.num_epochs=50
 
         if self.task_number == 0:
-            self.num_epochs = 1
+            self.num_epochs = 50
         else:
-            self.num_epochs = 1
+            self.num_epochs = 50
         for epoch in range(self.num_epochs):
 
             # iterate batch wise through the stream data using the data loader
@@ -117,8 +127,8 @@ class Tiny(Base):
                     
                     iter_times.append(iter_time)
                     if data_stream_count % 20 == 0:
-                        pass
-                        # print(f"EPOCH {epoch}, ITER {data_stream_count}, TIME {iter_en-iter_st}...")
+                        # pass
+                        print(f"EPOCH {epoch}, ITER {data_stream_count}, TIME {iter_en-iter_st}...")
                 iter_st = time.perf_counter()
 
 
@@ -243,7 +253,7 @@ class Tiny(Base):
             print("c_task {} _accuracy domain :{} ".format(self.task_number,i), task_accuracy)
 
 
-            curr_accuracy, task_accuracy, class_accuracy = self.task_eval(i,get_entropy=self.get_test_entropy)
+            # curr_accuracy, task_accuracy, class_accuracy =  (0,0,0)
 
             # print("t_class_accuracy : ", class_accuracy)
             # print("t_task_accuracy : ", task_accuracy)
@@ -251,9 +261,9 @@ class Tiny(Base):
         print("--------------------------------look-------------------")
         print("task_accuracy_lst : ", task_accuracy_lst)
         print("task  {}_acc : ".format(self.task_number-1), np.average(task_accuracy_lst))
-        self.soft_class_incremental_acc.append(curr_accuracy.item())
+        self.soft_class_incremental_acc.append(curr_accuracy )
         # print("c_incremental_accuracy : ", self.soft_class_incremental_acc)
-        self.soft_task_incremental_acc.append(curr_accuracy.item())
+        self.soft_task_incremental_acc.append(curr_accuracy )
         # print("t_incremental_accuracy : ", self.soft_task_incremental_acc)
 
         f = open(self.result_save_path + self.filename + '_accuracy.txt', 'a')
@@ -426,65 +436,26 @@ class Tiny(Base):
         # taskID = self.classes_so_far -6
         domainID = task
 
-        common_trsf = [
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)
-            ),]
 
-        self.domainLst = [
-            'None',
-            'RandomHorizontalFlip',
-            'ColorJitter',
-            'RandomRotation',
-            'RandomAffine',
-        ]
-        domain_type = self.domainLst[domainID]
-        if domain_type == "RandomHorizontalFlip":
-            domain_trsf = [
-                transforms.RandomHorizontalFlip(p=1),#水平翻转
-            ]
-        elif domain_type == "ColorJitter":
-            domain_trsf = [
-               transforms.ColorJitter(brightness=63 / 255),
-            ]
-        elif domain_type == "RandomRotation":
-            domain_trsf = [
-                transforms.RandomRotation(5)
-            ]
-        elif domain_type == "RandomGrayscale":
-            domain_trsf = [
-                transforms.RandomGrayscale(p=1.0)
-            ]
-        elif domain_type == "RandomVerticalFlip":
-            domain_trsf = [
-                transforms.RandomVerticalFlip(p=1.0)
-            ]
-        elif domain_type == "RandomAffine":
-            domain_trsf = [
-                transforms.RandomAffine(degrees=0, translate=(0.05, 0.05))
-            ]
-        elif domain_type=='None':
-            domain_trsf = [
-                 # 为空，不作修改
-            ]
 
-        self.test_transform = transforms.Compose([ *common_trsf, *domain_trsf])
-
-        self.test_dataset = get_test_set(test_set_name=self.test_set, data_manager=self.data_manager, test_transform=self.test_transform)
+        self.test_dataset = get_test_set(test_set_name=self.test_set, data_manager=self.data_manager, test_transform=None)
         # self.test_dataset.clean_dataset()
+        self.test_dataset.download_data( task)
         self.test_dataset.append_task_dataset(task,task)
 
         test_dataloader = DataLoader(self.test_dataset, batch_size=128, shuffle=False)
 
         correct, total = 0, 0
-        class_correct = list(0. for i in range(self.classes_so_far))
-        class_total = list(0. for i in range(self.classes_so_far))
+
         class_accuracy = list()
         task_accuracy = dict()
         test_correct_t5 =0
         num_classes = max(self.test_dataset.TestLabels) + 1
         class_top5_correct = {}
+        # class_correct = list(0. for i in range(self.classes_so_far))
+        # class_total = list(0. for i in range(self.classes_so_far))
+        class_correct = list(0. for i in range(num_classes))
+        class_total = list(0. for i in range(num_classes))
         for i in range(num_classes):
             class_top5_correct[i] = 0
         for setp, (imgs, labels) in enumerate(test_dataloader):
@@ -520,10 +491,11 @@ class Tiny(Base):
 
             for i in range(labels.size(0)):
                 label = labels[i].item()
+                # print(label)
                 class_correct[label] += class_top5_correct[label]
                 class_total[label] += 1
 
-        for i in range(len(class_top5_correct)):
+        for i in range(domainID*10 ,domainID*10+60  ):
             if class_top5_correct[i] == 0 and class_total[i] == 0:
                 continue
             class_acc = 100 * class_top5_correct[i] / class_total[i]
@@ -538,6 +510,9 @@ class Tiny(Base):
                     task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x-domainID], task_classes))))
                 if self.test_set=="cifar100":
                     task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x-domainID*10], task_classes))))
+                if self.test_set == "domainNet":
+                    task_acc = np.mean(
+                        np.array(list(map(lambda x: class_accuracy[x - domainID * 10], task_classes))))
             # elif task_id == domainID:
             #     task_acc = np.mean(np.array(list(map(lambda x: class_accuracy[x-1], task_classes))))
 

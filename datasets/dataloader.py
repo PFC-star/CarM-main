@@ -240,14 +240,14 @@ class GDumbDataLoader(object):
         yield from self.concat_dataloader
 
 class AserDataLoader(object):
-    def __init__(self, stream_dataset, replay_dataset, data_manager, num_workers, batch, swap):
+    def __init__(self, stream_dataset, replay_dataset, data_manager, num_workers, batch, swap,sampler):
         self.num_workers = num_workers
         self.batch_size = batch
         self.swap = swap
         self.stream_dataset = stream_dataset
         self.replay_dataset = replay_dataset
         self.data_manager = data_manager
-
+        self.sampler = sampler
         self.concat_dataset = GDumbDataset(self.stream_dataset)
     
     def update_loader(self): # gdumb should save in memory before first loading data,
@@ -256,7 +256,8 @@ class AserDataLoader(object):
         self.concat_dataloader = DataLoader(self.concat_dataset,
                                         batch_size = self.batch_size,
                                         num_workers = self.num_workers,
-                                        shuffle=True
+                                        shuffle=False,
+                                        sampler = self.sampler
                                         )
 
     def __iter__(self):

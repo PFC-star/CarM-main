@@ -11,7 +11,7 @@ parameters:
   - 2
   num_workers: 1
   rb_path: ./rb_data/er/cifar10/CarM-50
-  rb_size: 1000
+  rb_size: 2000
   result_save_path: results/er/cifar10/CarM-50
   run: 1
   sampling: ringbuffer

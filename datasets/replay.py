@@ -95,7 +95,7 @@ class ReplayDataset(Dataset):
         img = self.data[idx]
 
         
-        img = self.transform(img)
+        # img = self.transform(img)
         label = self.targets[idx]
         data_id = self.tracker[idx]
         

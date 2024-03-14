@@ -63,7 +63,13 @@ class MultiTaskStreamDataset(Dataset):
     def __init__(self, batch, samples_per_task, transform):
         self.batch = batch
         self.samples_per_task = samples_per_task
-        self.transform = transform
+        self.transform = transforms.Compose([transforms.Resize(32),
+                                                   transforms.RandomResizedCrop(32),
+                                                   transforms.ToTensor(),
+                                                   transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                        std=[0.229, 0.224, 0.225]),
+                                                   ])
+
         self.data_queue = dict()
 
         self.classes_in_dataset = set()
@@ -71,6 +77,7 @@ class MultiTaskStreamDataset(Dataset):
         self.targets = list()
 
     def append_stream_data(self, img, label, task_id, is_train):
+        # 数据被发送到了  self.data_queue中
         if task_id not in self.data_queue:
             self.data_queue[task_id] = list()
         self.data_queue[task_id].append((img, label))
@@ -103,64 +110,23 @@ class MultiTaskStreamDataset(Dataset):
         self.targets = list()
 
         #for i, (img, label) in enumerate(self.data_queue[task_id]):
-        i = 0
-        self.domainList = [
-            'None',
-            'RandomHorizontalFlip',
-            'ColorJitter',
-            'RandomRotation',
-            'RandomAffine',
-        ]
-        random_seed = 2023
-        torch.manual_seed(random_seed)
-        torch.cuda.manual_seed(random_seed)
-        np.random.seed(random_seed)
-        random.seed(random_seed)
-        domain_type =  self.domainList[domain]
-        if domain_type == "RandomHorizontalFlip":
-            domain_trsf  = transforms.RandomHorizontalFlip(p=1)
 
-        elif domain_type == "ColorJitter":
-            domain_trsf =  transforms.ColorJitter(brightness=63 / 255)
-
-        elif domain_type == "RandomRotation":
-            domain_trsf  = transforms.RandomRotation(5)
-        elif domain_type == "RandomGrayscale":
-            domain_trsf =  transforms.RandomGrayscale(p=1.0)
-
-        elif domain_type == "RandomVerticalFlip":
-            domain_trsf =  transforms.RandomVerticalFlip(p=1.0)
-
-        elif domain_type == "RandomAffine":
-            domain_trsf =  transforms.RandomAffine(degrees=0, translate=(0.05, 0.05))
-
-        elif domain_type=='None':
-            domain_trsf   = None
-                 # 为空，不作修改
 
 
         while True:
             if len(self.data_queue[task_id]) == 0: #or len(self.data) >= self.samples_per_task:
                 break
-            img, label = self.data_queue[task_id][i]
+            img, label = self.data_queue[task_id][0]
 
 
-            if domain_trsf:
-                random_seed = 2023
-                torch.manual_seed(random_seed)
-                torch.cuda.manual_seed(random_seed)
-                np.random.seed(random_seed)
-                random.seed(random_seed)
 
-                img = domain_trsf(img)
-                self.domain_change = True
 
             self.data.append(img)
             self.targets.append(label)
             if label not in self.classes_in_dataset:
                 self.classes_in_dataset.append(label)
 
-            del self.data_queue[task_id][i]
+            del self.data_queue[task_id][0]
 
         print("stream dataset classes_in dataset : ", self.classes_in_dataset)
         print("stream dataset len : ", len(self.data))
@@ -204,7 +170,9 @@ class MultiTaskStreamDataset(Dataset):
 
     def __getitem__(self, idx):
         img = self.data[idx]
-        img = self.transform(img)
+        # 前面已经进行过transformer了，这里不需要再进行了
+        # img = transforms.ToPILImage()( img)
+        # img = self.transform(img)
         label = self.targets[idx]
         #print("FETCHED  : ", len(self.data), idx)
 

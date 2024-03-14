@@ -85,6 +85,8 @@ class Base(object):
                 self.model = der_resnet18(1000)
             elif self.test_set == "tiny_imagenet":
                 self.model = der_resnet18(200)
+            elif self.test_set == "domainNet":
+                self.model = der_resnet18(200)
             elif self.test_set == "cifar100":
                 self.model = der_resnet18(100)
             else:

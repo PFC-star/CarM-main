@@ -7,7 +7,7 @@ import torch
 import random
 from types import SimpleNamespace
 
-from init_tasks import test_cifar10, test_cifar100, test_imagenet100, test_imagenet1000, test_tinyimagenet, test_miniimagenet
+from init_tasks import test_cifar10, test_cifar100, test_imagenet100, test_imagenet1000, test_tinyimagenet, test_miniimagenet,test_domainNet
 
 
 def load_yaml(path, key='parameters'):
@@ -41,7 +41,8 @@ def main():
         'imagenet100' : test_imagenet100,
         'imagenet1000' : test_imagenet1000,
         'mini_imagenet' : test_miniimagenet,
-        'tiny_imagenet' : test_tinyimagenet
+        'tiny_imagenet' : test_tinyimagenet,
+        'domainNet': test_domainNet,
     }
 
     exp_dataset[final_params.test_set].experiment(final_params)

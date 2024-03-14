@@ -23,8 +23,8 @@ from lib.swap_manager import SwapManager
 class Continual(object):
     def __init__(self, gpu_num=0, batch_size=10, epochs=1, rb_size=100, num_workers=0, swap=False,
                 opt_name="SGD", lr=0.1, lr_schedule=None, lr_decay=None,
-                sampling="reservoir", train_transform=transforms.Compose([transforms.RandomCrop(32, padding=4),  transforms.ToTensor(), transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)),]),
-                 test_transform=transforms.Compose([transforms.RandomCrop(32, padding=4),  transforms.ToTensor(), transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)),]), test_set="cifar10", rb_path=None,
+                sampling="reservoir", train_transform= None,
+                 test_transform=  None, test_set="cifar10", rb_path=None,
                 model="resnet18", agent_name="icarl", mode="disjoint", filename=None, samples_per_task = 5000, **kwargs):
         self.data_manager = DataManager()
         self.batch_size = batch_size
@@ -57,7 +57,7 @@ class Continual(object):
 
         else:
             self.test_transform = test_transform
-        
+        # 这里给test数据集传入值  注意trainsform应该给什么
         self.test_dataset = get_test_set(test_set, data_manager=self.data_manager, test_transform=self.test_transform)
 
         self.opt_name = opt_name
@@ -112,8 +112,20 @@ class Continual(object):
                                                       transforms.ToTensor(),
                                                       transforms.Normalize((0.4914, 0.4822, 0.4465),
                                                                             (0.2470, 0.2435, 0.2615))])
+        elif self.test_set == "domainNet":
+            self.train_transform = transforms.Compose([ transforms.Resize(64),
+                                             transforms.RandomResizedCrop(64),
+                                                        transforms.ToTensor(),
+                                                        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                    std=[0.229, 0.224, 0.225]),
+                                                        ])
 
-
+            self.test_transform = transforms.Compose([ transforms.Resize(68),
+                                                        transforms.CenterCrop(64),
+                                                       transforms.ToTensor(),
+                                                       transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                            std=[0.229, 0.224, 0.225]),
+                                                       ])
         elif self.test_set in ["imagenet", "imagenet100", "imagenet1000"]:
             normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                             std=[0.229, 0.224, 0.225])
@@ -188,6 +200,7 @@ class Continual(object):
     def set_disjoint_dataset(self):
         self.train = False
         #self.samples_per_task = 5000
+        # 这里是定义训练使用的数据集的，非常重要 但是这里只是定义了一下，里面的数据并没有填充
         self.stream_dataset = MultiTaskStreamDataset(batch=self.batch_size,
                                             samples_per_task = self.samples_per_task, 
                                             transform=self.train_transform)
